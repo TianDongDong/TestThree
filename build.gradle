@@ -1,0 +1,58 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+/**
+ * 声明所有的model都可以使用config.gradle中的内容
+ */
+apply from :"config.gradle"
+apply from :"configTwo.gradle"
+//defaultTasks 'clean','assembleDebug'
+
+//构建脚本  相当于java中的方法
+buildscript {
+
+    /**
+     * repositories(仓库)  依赖库位置 jcenter仓库    当你添加外部依赖的时候  会在此仓库中进行寻找
+     *   jcenter仓库---->是一个预配置的Maven仓库,里面存放了许多第三方依赖库   相当于一个代码仓库
+     *      在使用第三方依赖 比如使用.jar时我们只需要指定使用仓库中的相应依赖文件的链接即可,而不用
+     *      将jar包放入项目中
+     */
+    repositories {
+        jcenter()
+    }
+    /**
+     * dependencies(依赖)  
+     */
+    dependencies {
+        /**
+         * gradle的安卓插件  每个Android模块都需要Android插件,因为该插件可使其执行Andrid相关的任务
+         */
+        classpath 'com.android.tools.build:gradle:2.2.2'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+/**
+ * allprojects(所有的项目) 用来声明那些需要被用于所有模块的属性 可以在其中创建任务，这些任务会被运行到所有模块
+ */
+allprojects {
+    repositories {
+        jcenter()
+    }
+
+}
+
+/**
+ * 顶层构建文件可以定义属性 提供模块构建文件使用
+ */
+ext{
+    compileSdkVersion=24
+    buildToolsVersion="25.0.0"
+    name="I TOP"
+    appName="我是顶层构建文件"
+}
+
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

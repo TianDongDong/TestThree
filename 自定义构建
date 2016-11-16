@@ -1,0 +1,113 @@
+create by huangYi  2016/11/14
+
+自定义构建
+
+     当你在AndroidStudio中修改了x.gradle文件时,无论作出任何修改 都必须对项目进行同步，特别是添加了
+ 依赖(添加了依赖之后需要对项目进行同步，才可以进行使用)或者使用了BuildConfig常量时(比如在封装Log日
+ 志的时候，一般情况下我们会使用到BuildConfig.DEBUG)
+     可以点击tryAgin 或者 Sync Now 或者工具栏上的同步或者 Tools-->Android-->Sync Project with Grade Files
+
+      其实Studio同步是运行了 generateDebugSource任务来生成所有必须的类
+
+操控manifest条目
+     我们直接可以在模块的manifest中对应用的参数进行配置 applicationId minSdkVersion targetSdkVersion
+  versionCode versionName 另外下面的属性也是可以进行操控的
+      testApplicationID: 针对instrument 测试APK的applicationId
+      testInstrumentationRunner：JUnit测试运行器的名称,被用来进行测试
+      signingConfig
+      proguardFile
+
+      可以在File---->Project Structure中进行设置 Build Types进行设置，这里面的设置最终都会生成到.gradle文件中
+
+BuildConfigs和资源
+      从SDK版本17之后 构建工具会生成一个BuildConfig类(app/build/generated/source/buildConfig) 里面包含了一个
+   按照构建类型设置值的DEBUG常量比如在 封装Log的时候可以对其进行使用,我们可以它能够给gradle文件对其产生的常量
+   进行扩展，这样在不同的buildType时 就可以拥有不同的常量 比如:测试服务器的URL和正式的URL
+       buildTypes {
+           release {
+               minifyEnabled false
+               proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+               //注意：字符串必须用转义双引号("\xx")括起来 才会生成字符串
+               buildConfigField "String","API_URL","\"http://192.16.199:8080/test\""
+               buildConfigField "boolean","LOG","false"
+           }
+
+           debug{
+               buildConfigField "String","API_URL","\"http://192.16.199:8080/debug\""
+               buildConfigField "boolean","LOG","true"
+           }
+       }
+
+    并且可以使用类似的方式来配置资源值
+       resValue "tring","name","release"  这种方式会在app/build/res/resValues下面生成一个xml中
+                可以直接在代码中进行使用 android:text="@string/name"
+    也可以使用类似的方式去更改 AndroidManifest中的数据
+          1.在manifest中设置一个变量
+
+              <meta-data
+                android:name="UMENG_APPKEY"
+                android:value="${umeng_app_key}"/>
+
+          2.在build.gradle中对其进行赋值
+
+                debug {
+                    manifestPlaceholders = [umeng_app_key: "你替代的内容"]
+                 }
+                release {
+                     manifestPlaceholders = [umeng_app_key: "你替代的内容"]
+                  }
+
+项目范围的设置
+-------------------------------------问题start--------------------------------
+    问题？？？如果在一个项目中，你拥有多个Android模块，我们已经知道在顶层的构建文件中 allprojects代码块可以定义
+依赖仓库，这样所有的Model模块都使用此依赖，我们可以使用相同的策略来使用Android特定的设置
+           allprojects{
+              apply plugin: 'com.android.application'
+              android{
+                  compileSdkVersion 24
+                  buildToolsVersion "25.0.0"
+              }
+           }
+       注意:这种方式只有在所有的模块都是app模块的时候才可以使用
+-------------------------------------问题end--------------------------------
+    gradle允许在Project对象上添加额外的属性，任何build.gradle都可以添加额外的属性，添加额外的属性需要
+    用到ext代码块
+
+    在顶层构建文件中 添加爱一个含有自定义属性的etc代码块
+          ext{
+                compileSdkVersion=24
+                buildToolsVersion="25.0.0"
+             }
+     在模块层的构建文件中对其进行引用 通过rootProject对其进行引用
+               compileSdkVersion rootProject.ext.compileSdkVersion
+               buildToolsVersion rootProject.ext.buildToolsVersion
+使用外部 xxx.gradle文件
+   1.可以新建一个 config.gradle 在其中进行配置
+
+       ext{
+          packageV7='com.android.support:appcompat-v7:24.2.1'
+          pcakageTestCompile='junit:junit:4.12'
+       }
+
+   2.在顶层构建文件中进行声明 所有的model都可以读取config.gradle中的内容 可以声明多个
+     如果顶层文件中存在 和config.gradle中的属性相同 则会将其覆盖
+
+         apply from :"config.gradle"
+
+    3.在model的构建文件中就可以对其进行使用  同样通过rootProject
+
+          rootProject.ext.packageV7
+
+
+
+-------------------------------------问题start--------------------------------
+    ？？？注意:我们可以同时在顶层构建文件以及模块构建文件中定义属性，如果一个模块定义了一个在顶层构建文件中
+         早已存在的属性时，那么新属性将会覆盖早已存在的属性
+-------------------------------------问题end--------------------------------
+
+    当没有指定任何任务而运行Gradle时(在终端(Terminal) 执行gradlew命令) 会执行help任务 会打印如何使用gradle的信息，help任务被设置为默认任务，可以覆写
+默认任务，添加一个常用任务，甚至是多个任务
+    在顶层构建文件中加入一行
+      defaultTasks 'clean','assembleDebug
+
+      设置默认任务为 clean和 assembleDebug
